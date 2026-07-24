@@ -37,7 +37,7 @@ into clean `.md` files — output lands right next to the source file.
 
 `build_app.sh` installs a `ToMD` terminal command. It has three modes:
 
-### 1. Pick files in Finder (default)
+### 1. Interactive (default)
 
 Just run it with no arguments:
 
@@ -45,13 +45,16 @@ Just run it with no arguments:
 ToMD
 ```
 
-This pops the **native macOS "choose files" dialog** — multi-select, mixes
-`.msg` and `.pdf`. Each converted `.md` lands right next to its source
-file. No GUI framework involved, so this always works.
+You get the full guided experience — a welcome animation, a menu to pick
+which file type you're converting (`.msg`, `.pdf`, or both), the **native
+macOS "choose files" dialog**, an animated per-file conversion, a summary
+report, and then a prompt to convert more or quit. It loops until you
+choose to leave. No GUI framework involved (pure terminal + Finder
+dialog), so it always works. Each `.md` lands right next to its source.
 
 ### 2. Convert specific files (scripting)
 
-Pass paths directly:
+Pass paths directly and it runs non-interactively, printing a report:
 
 ```bash
 ToMD ~/Desktop/report.pdf ~/Mail/suspicious.msg
@@ -62,22 +65,24 @@ any file failed — handy in shell pipelines.
 
 ### 3. Full graphical app
 
-If you want the animated progress bar, summary screen, and confetti, use
-the `--gui` flag (or launch `ToMd.app` from Spotlight):
+There's also a Tkinter app with a progress bar and confetti. Launch
+`ToMd.app` from Spotlight, or:
 
 ```bash
-ToMD --gui
+python3 app_gui.py --gui
 ```
 
-> The `--gui` mode uses Tkinter. macOS's *system* Tk is deprecated and
+> The graphical app uses Tkinter. macOS's *system* Tk is deprecated and
 > renders a blank window on some setups; if that happens, install a Python
 > built against modern Tk (`brew install python-tk@3.12`) and rebuild the
-> venv. Modes 1 and 2 above don't have this dependency.
+> venv. Modes 1 and 2 don't have this dependency, so they're the
+> recommended way to use ToMd.
 
 ## Files in this folder
 
 | File | Purpose |
 |---|---|
+| `tomd_cli.py` | The interactive terminal app (what `ToMD` runs) — animated menu, picker, report loop |
 | `app_gui.py` | The GUI app (Tkinter) — picker, progress, summary screens |
 | `converter_core.py` | Conversion logic, no GUI code — reusable/testable on its own |
 | `build_app.sh` | Packages the above into a double-clickable / Spotlight-launchable `.app` |
