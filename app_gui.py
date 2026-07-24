@@ -121,11 +121,12 @@ class ToMdApp:
 
     def _pick_files(self):
         paths = filedialog.askopenfilenames(
-            title="Choose .msg or .pdf files",
+            title="Choose files to convert",
             filetypes=[
-                ("Emails & PDFs", "*.msg *.pdf"),
-                ("Outlook messages", "*.msg"),
+                ("All supported", "*.msg *.pdf *.docx *.rtf *.html *.htm *.txt *.log *.odt *.doc *.epub"),
+                ("Documents", "*.docx *.rtf *.odt *.html *.htm *.txt"),
                 ("PDF documents", "*.pdf"),
+                ("Outlook messages", "*.msg"),
                 ("All files", "*.*"),
             ],
         )

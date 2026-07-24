@@ -1,16 +1,32 @@
 # ToMd 📄➜📝
 
-A friendly macOS tool that converts `.msg` (Outlook emails) and `.pdf` files
-into clean `.md` files — output lands right next to the source file.
+A friendly macOS tool that converts documents, emails, and PDFs into clean
+`.md` files — output lands right next to the source file.
 
-- Native macOS "choose files" dialog, multi-select, mixes `.msg` and `.pdf`
-- Animated progress bar + live log while it works
-- Confetti + summary screen when it's done
+- Converts many written formats to Markdown (see the table below)
+- Native macOS "choose files" dialog, multi-select, mixes any supported types
+- Animated interactive terminal app: welcome screen, menu, live conversion,
+  report, and a convert-more/quit loop
 - `.msg` conversion also extracts attachments into a sibling folder and
   lists each one's SHA-256 hash in the Markdown (handy if you're triaging
   suspicious emails)
 - Packaged as a real `.app` — launch it from Spotlight by typing its name,
   no Terminal required after setup
+
+## Supported formats
+
+| Input | Engine | Notes |
+|---|---|---|
+| `.msg` | extract-msg | Body + attachment SHA-256 table |
+| `.pdf` | PyMuPDF | One section per page (text, not OCR) |
+| `.docx` | python-docx | Headings, lists, tables, bold/italic |
+| `.rtf` | striprtf | Plain text |
+| `.html` / `.htm` | markdownify | HTML → Markdown |
+| `.txt` / `.log` | built-in | Passed through |
+| `.odt`, `.doc`, `.epub`, `.tex`, … | pandoc *(optional)* | Only if the `pandoc` binary is installed |
+
+Each format's library is loaded only when needed, so a missing one just
+skips that format with an install hint — it never breaks the app.
 
 ## One-time setup
 

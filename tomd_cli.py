@@ -26,6 +26,7 @@ import threading
 import time
 from pathlib import Path
 
+import converter_core
 from converter_core import convert_file, ConversionError, ConversionResult
 
 # ---------------------------------------------------------------------------
@@ -90,7 +91,7 @@ def welcome_animation():
     """A short, tasteful intro. Skipped (reduced to a static header) when the
     terminal can't animate."""
     if not _ANSI:
-        print(f"{BOLD}ToMd — .msg / .pdf → Markdown{RESET}\n")
+        print(f"{BOLD}ToMd — documents, emails & PDFs → Markdown{RESET}\n")
         return
 
     _clear()
@@ -103,7 +104,7 @@ def welcome_animation():
             time.sleep(0.06)
 
         # Animate the "paper → memo" motif walking across.
-        tagline = "turn .msg emails & .pdf files into clean Markdown"
+        tagline = "turn documents, emails & PDFs into clean Markdown"
         for step in range(0, 9):
             arrow = "·" * step + "➜" + "·" * (8 - step)
             sys.stdout.write(
@@ -121,28 +122,38 @@ def welcome_animation():
 # Menu
 # ---------------------------------------------------------------------------
 
-TYPE_CHOICES = {
-    "1": ("Outlook emails", "(.msg)", ("msg",)),
-    "2": ("PDF documents", "(.pdf)", ("pdf",)),
-    "3": ("Any mix", "(.msg + .pdf)", ("msg", "pdf")),
-}
+def _build_type_menu() -> dict[str, tuple[str, str, tuple[str, ...]]]:
+    """Build the menu from converter_core's format groups, plus an 'Any' entry.
+    Returns {key: (label, pretty_extensions, extension_tuple)}."""
+    menu: dict[str, tuple[str, str, tuple[str, ...]]] = {}
+    for i, (label, exts) in enumerate(converter_core.FILE_GROUPS, start=1):
+        pretty = ", ".join("." + e for e in exts)
+        menu[str(i)] = (label, pretty, tuple(exts))
+    any_key = str(len(converter_core.FILE_GROUPS) + 1)
+    menu[any_key] = (
+        "Any supported type", "everything below",
+        tuple(converter_core.all_supported_extensions()),
+    )
+    return menu
 
 
 def type_menu() -> tuple[str, ...] | None:
     """Ask what to convert. Returns the tuple of extensions to allow, or None
     if the user chose to quit."""
+    menu = _build_type_menu()
+    keys = ", ".join(menu.keys())
     print(f"{BOLD}What would you like to convert?{RESET}\n")
-    for key, (label, ext, _) in TYPE_CHOICES.items():
-        print(f"  {PURPLE}{key}{RESET}) {label:<16}{GREY}{ext}{RESET}")
-    print(f"  {PURPLE}q{RESET}) {'Quit':<16}{GREY}(exit ToMd){RESET}\n")
+    for key, (label, pretty, _) in menu.items():
+        print(f"  {PURPLE}{key}{RESET}) {label:<20}{GREY}{pretty}{RESET}")
+    print(f"  {PURPLE}q{RESET}) {'Quit':<20}{GREY}exit ToMd{RESET}\n")
 
     while True:
-        choice = _prompt(f"Choose {DIM}[1-3, q]{RESET}: ").strip().lower()
+        choice = _prompt(f"Choose {DIM}[{keys}, q]{RESET}: ").strip().lower()
         if choice in ("q", "quit", "exit"):
             return None
-        if choice in TYPE_CHOICES:
-            return TYPE_CHOICES[choice][2]
-        print(f"  {YELLOW}Please enter 1, 2, 3, or q.{RESET}")
+        if choice in menu:
+            return menu[choice][2]
+        print(f"  {YELLOW}Please enter {keys}, or q.{RESET}")
 
 
 def _prompt(msg: str) -> str:
@@ -288,10 +299,7 @@ def show_report(results: list[ConversionResult], errors: list[tuple[Path, str]])
     print()
     print(_rule("Report"))
     for r in results:
-        detail = (
-            f"{r.pages_or_attachments} page(s)" if r.kind == "pdf"
-            else f"{r.pages_or_attachments} attachment(s)"
-        )
+        detail = r.detail or r.kind
         print(f"  {GREEN}✅{RESET} {r.output.name:<28} {GREY}{detail}{RESET}")
     for path, err in errors:
         print(f"  {RED}⚠️{RESET}  {path.name:<28} {DIM}{err.splitlines()[0]}{RESET}")
