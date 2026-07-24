@@ -35,25 +35,44 @@ into clean `.md` files — output lands right next to the source file.
 
 ## Everyday use
 
-### Graphical
+`build_app.sh` installs a `ToMD` terminal command. It has three modes:
 
-Press **Cmd+Space**, type **ToMd**, hit **Enter**. Click **Choose
-Files…**, select any mix of `.msg`/`.pdf` files, watch it work, then
-**Reveal in Finder** to jump straight to the output.
+### 1. Pick files in Finder (default)
 
-### From the terminal (no GUI)
+Just run it with no arguments:
 
-`build_app.sh` also installs a `ToMD` command. Run it with no arguments
-to open the graphical picker, or pass files to convert them straight away
-— handy for scripting, and it needs no Tk so it works even where the GUI
-doesn't:
+```bash
+ToMD
+```
+
+This pops the **native macOS "choose files" dialog** — multi-select, mixes
+`.msg` and `.pdf`. Each converted `.md` lands right next to its source
+file. No GUI framework involved, so this always works.
+
+### 2. Convert specific files (scripting)
+
+Pass paths directly:
 
 ```bash
 ToMD ~/Desktop/report.pdf ~/Mail/suspicious.msg
 ```
 
-Each `.md` lands next to its source file; the command exits non-zero if
-any file failed.
+Each `.md` is written next to its source; the command exits non-zero if
+any file failed — handy in shell pipelines.
+
+### 3. Full graphical app
+
+If you want the animated progress bar, summary screen, and confetti, use
+the `--gui` flag (or launch `ToMd.app` from Spotlight):
+
+```bash
+ToMD --gui
+```
+
+> The `--gui` mode uses Tkinter. macOS's *system* Tk is deprecated and
+> renders a blank window on some setups; if that happens, install a Python
+> built against modern Tk (`brew install python-tk@3.12`) and rebuild the
+> venv. Modes 1 and 2 above don't have this dependency.
 
 ## Files in this folder
 

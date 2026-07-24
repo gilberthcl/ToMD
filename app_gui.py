@@ -323,7 +323,7 @@ def run_cli(paths: list[str]) -> int:
         path = Path(raw)
         try:
             result = convert_file(path, log=lambda m: print(f"   {m}"))
-            print(f"✅ {path.name} → {result.output.name}")
+            print(f"✅ {path.name} → {result.output}")
             ok += 1
         except ConversionError as e:
             print(f"⚠️  {path.name}: {e}")
@@ -333,6 +333,47 @@ def run_cli(paths: list[str]) -> int:
             bad += 1
     print(f"\nDone: {ok} converted" + (f", {bad} failed" if bad else ""))
     return 1 if bad else 0
+
+
+def choose_files_macos() -> list[str]:
+    """Open the native macOS 'choose files' Finder dialog (no Tk required)
+    and return the selected POSIX paths. Empty list if the user cancels, or
+    if we're not on macOS."""
+    if sys.platform != "darwin":
+        return []
+
+    def _run(with_filter: bool):
+        type_clause = 'of type {"msg", "pdf"} ' if with_filter else ""
+        script = (
+            "set chosen to choose file "
+            'with prompt "Select .msg or .pdf files to convert" '
+            + type_clause
+            + "with multiple selections allowed\n"
+            'set out to ""\n'
+            "repeat with f in chosen\n"
+            "    set out to out & POSIX path of f & linefeed\n"
+            "end repeat\n"
+            "return out"
+        )
+        try:
+            return subprocess.run(
+                ["osascript", "-e", script], capture_output=True, text=True
+            )
+        except FileNotFoundError:
+            return None
+
+    proc = _run(with_filter=True)
+    if proc is None:
+        return []
+    if proc.returncode != 0:
+        # Distinguish a user cancel (respect it) from the type filter being
+        # unsupported on this macOS (retry without it so the dialog still opens).
+        if "cancel" in (proc.stderr or "").lower():
+            return []
+        proc = _run(with_filter=False)
+        if proc is None or proc.returncode != 0:
+            return []
+    return [ln for ln in proc.stdout.splitlines() if ln.strip()]
 
 
 def run_gui():
@@ -348,11 +389,30 @@ def run_gui():
 
 
 def main():
-    # Any non-flag argument means "convert these files headlessly"; with no
-    # arguments we fall back to the graphical picker.
-    files = [a for a in sys.argv[1:] if not a.startswith("-")]
+    argv = sys.argv[1:]
+    use_gui = "--gui" in argv
+    files = [a for a in argv if not a.startswith("-")]
+
+    # `--gui` forces the full Tkinter app (needs a working Tk).
+    if use_gui:
+        run_gui()
+        return
+
+    # Files on the command line → convert them directly.
     if files:
         raise SystemExit(run_cli(files))
+
+    # No files: open the native Finder picker (macOS) and convert the
+    # selection. This is the default lightweight flow — no Tk involved.
+    picked = choose_files_macos()
+    if picked:
+        raise SystemExit(run_cli(picked))
+
+    if sys.platform == "darwin":
+        print("No files selected.")
+        return
+
+    # Non-macOS with nothing to do: fall back to the graphical picker.
     run_gui()
 
 
