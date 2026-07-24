@@ -35,9 +35,25 @@ into clean `.md` files — output lands right next to the source file.
 
 ## Everyday use
 
+### Graphical
+
 Press **Cmd+Space**, type **ToMd**, hit **Enter**. Click **Choose
 Files…**, select any mix of `.msg`/`.pdf` files, watch it work, then
 **Reveal in Finder** to jump straight to the output.
+
+### From the terminal (no GUI)
+
+`build_app.sh` also installs a `ToMD` command. Run it with no arguments
+to open the graphical picker, or pass files to convert them straight away
+— handy for scripting, and it needs no Tk so it works even where the GUI
+doesn't:
+
+```bash
+ToMD ~/Desktop/report.pdf ~/Mail/suspicious.msg
+```
+
+Each `.md` lands next to its source file; the command exits non-zero if
+any file failed.
 
 ## Files in this folder
 

@@ -16,10 +16,19 @@ import sys
 import threading
 import time
 from pathlib import Path
-from tkinter import Tk, Canvas, filedialog, messagebox
-from tkinter import ttk, StringVar
 
 from converter_core import convert_file, ConversionError
+
+# Tkinter is imported lazily (see _load_tk) so the headless CLI path works
+# even where Tk is missing or broken. With `from __future__ import annotations`
+# the `root: Tk` hints below are just strings and never need Tk at import time.
+
+
+def _load_tk():
+    """Import the Tkinter symbols this module uses into globals, on demand."""
+    global Tk, Canvas, filedialog, messagebox, ttk, StringVar
+    from tkinter import Tk, Canvas, filedialog, messagebox
+    from tkinter import ttk, StringVar
 
 # ---------------------------------------------------------------------------
 # Palette — soft dark theme with an accent color, feels a bit more "app-like"
@@ -303,7 +312,31 @@ class ToMdApp:
         step()
 
 
-def main():
+def run_cli(paths: list[str]) -> int:
+    """Headless conversion — used when file paths are passed as arguments.
+
+    Needs no Tk, so it works anywhere the two conversion packages are
+    installed, even where the GUI's Tk is broken/deprecated.
+    """
+    ok = bad = 0
+    for raw in paths:
+        path = Path(raw)
+        try:
+            result = convert_file(path, log=lambda m: print(f"   {m}"))
+            print(f"✅ {path.name} → {result.output.name}")
+            ok += 1
+        except ConversionError as e:
+            print(f"⚠️  {path.name}: {e}")
+            bad += 1
+        except Exception as e:  # noqa: BLE001 - surface anything unexpected
+            print(f"❌ {path.name}: unexpected error — {e}")
+            bad += 1
+    print(f"\nDone: {ok} converted" + (f", {bad} failed" if bad else ""))
+    return 1 if bad else 0
+
+
+def run_gui():
+    _load_tk()
     root = Tk()
     if sys.platform == "darwin":
         try:
@@ -312,6 +345,15 @@ def main():
             pass
     ToMdApp(root)
     root.mainloop()
+
+
+def main():
+    # Any non-flag argument means "convert these files headlessly"; with no
+    # arguments we fall back to the graphical picker.
+    files = [a for a in sys.argv[1:] if not a.startswith("-")]
+    if files:
+        raise SystemExit(run_cli(files))
+    run_gui()
 
 
 if __name__ == "__main__":
