@@ -30,24 +30,51 @@ skips that format with an install hint — it never breaks the app.
 
 ## One-time setup
 
-1. Install the two Python packages this uses:
+The build system is cross-platform. `build_app.sh` detects your OS and runs
+the right packager — `build_macos.sh` on macOS, `build_linux.sh` on Linux.
 
-   ```bash
-   pip3 install -r requirements.txt
-   ```
+```bash
+chmod +x build_app.sh
+./build_app.sh
+```
 
-2. Build the app (turns these files into `ToMd.app` and installs it to
-   `~/Applications`):
+### macOS
 
-   ```bash
-   chmod +x build_app.sh
-   ./build_app.sh
-   ```
+`build_macos.sh` installs the Python packages' companion, builds `ToMd.app`
+with `osacompile`, and installs it to `~/Applications` plus a `ToMD`
+terminal command. Install the Python deps first:
 
-3. First launch: macOS will likely warn that the app is from an
-   unidentified developer (it's unsigned, since it's your own local build).
-   Right-click `ToMd.app` in `~/Applications` → **Open** → **Open**
-   once, to approve it. After that, Spotlight launches it normally.
+```bash
+pip3 install -r requirements.txt
+```
+
+First launch: macOS will likely warn that the app is from an unidentified
+developer (it's unsigned). Right-click `ToMd.app` in `~/Applications` →
+**Open** → **Open** once to approve it; after that Spotlight launches it
+normally.
+
+### Linux (Ubuntu 24.04 / elementary OS, etc.)
+
+`build_linux.sh` uses **PyInstaller** to produce a single self-contained
+executable, then installs a desktop launcher. It will:
+
+1. create/reuse a `.venv` and install `requirements.txt` + PyInstaller,
+2. build `dist/ToMD` (one file, no loose Python sources needed),
+3. install the executable to `~/.local/bin/ToMD`,
+4. install `~/.local/share/applications/ToMD.desktop` so ToMD appears in
+   your Applications menu,
+5. use an icon from `assets/ToMD.png` (or `.svg`) if you provide one.
+
+For the graphical mode you also need Tkinter — the script detects this and,
+if it's missing, builds the CLI-only launcher and tells you to install it:
+
+```bash
+sudo apt install python3-tk
+```
+
+The interactive picker uses **zenity** (or **kdialog**) for a native file
+dialog; install `zenity` if you don't have it (`sudo apt install zenity`).
+Without either, it falls back to typing paths.
 
 ## Everyday use
 
@@ -62,11 +89,12 @@ ToMD
 ```
 
 You get the full guided experience — a welcome animation, a menu to pick
-which file type you're converting (`.msg`, `.pdf`, or both), the **native
-macOS "choose files" dialog**, an animated per-file conversion, a summary
-report, and then a prompt to convert more or quit. It loops until you
-choose to leave. No GUI framework involved (pure terminal + Finder
-dialog), so it always works. Each `.md` lands right next to its source.
+which file type you're converting, a **native "choose files" dialog**
+(Finder on macOS, zenity/kdialog on Linux), an animated per-file
+conversion, a summary report, and then a prompt to convert more or quit.
+It loops until you choose to leave. No GUI framework involved (pure
+terminal + the OS file dialog), so it always works. Each `.md` lands right
+next to its source.
 
 ### 2. Convert specific files (scripting)
 
@@ -81,12 +109,15 @@ any file failed — handy in shell pipelines.
 
 ### 3. Full graphical app
 
-There's also a Tkinter app with a progress bar and confetti. Launch
-`ToMd.app` from Spotlight, or:
+There's also a Tkinter app with a progress bar and confetti:
 
 ```bash
-python3 app_gui.py --gui
+ToMD --gui
 ```
+
+On macOS you can also launch `ToMd.app` from Spotlight; on Linux the
+Applications-menu entry launches this graphical mode when Tkinter is
+available.
 
 > The graphical app uses Tkinter. macOS's *system* Tk is deprecated and
 > renders a blank window on some setups; if that happens, install a Python
@@ -101,13 +132,16 @@ python3 app_gui.py --gui
 | `tomd_cli.py` | The interactive terminal app (what `ToMD` runs) — animated menu, picker, report loop |
 | `app_gui.py` | The GUI app (Tkinter) — picker, progress, summary screens |
 | `converter_core.py` | Conversion logic, no GUI code — reusable/testable on its own |
-| `build_app.sh` | Packages the above into a double-clickable / Spotlight-launchable `.app` |
-| `requirements.txt` | The two pip packages needed: `extract-msg`, `pymupdf` |
+| `build_app.sh` | Cross-platform build dispatcher — detects the OS and runs the right script |
+| `build_macos.sh` | macOS packaging — `osacompile` `.app` + Spotlight/terminal launchers |
+| `build_linux.sh` | Linux packaging — PyInstaller executable + `.desktop` launcher |
+| `requirements.txt` | Conversion dependencies (see the top of the file) |
 
 ## Re-building after an edit
 
-If you tweak `app_gui.py` or `converter_core.py`, just re-run
-`./build_app.sh` — it copies the latest files into the app bundle.
+If you tweak any of the `.py` files, just re-run `./build_app.sh` — on macOS
+it copies the latest sources into the app bundle; on Linux it rebuilds the
+PyInstaller executable and reinstalls it.
 
 ## Troubleshooting
 

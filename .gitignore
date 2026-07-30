@@ -5,9 +5,11 @@ __pycache__/
 .venv/
 venv/
 
-# Build output from build_app.sh
+# Build output (macOS .app + PyInstaller Linux artifacts)
 build/
+dist/
 *.app/
+*.spec
 
 # macOS
 .DS_Store

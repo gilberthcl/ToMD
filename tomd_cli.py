@@ -165,17 +165,62 @@ def _prompt(msg: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Native macOS file picker (no Tk)
+# Native file pickers (no Tk) — macOS via osascript, Linux via zenity/kdialog
 # ---------------------------------------------------------------------------
 
 def choose_files(extensions: tuple[str, ...]) -> list[Path]:
-    """Open the native macOS 'choose files' dialog restricted to the given
-    extensions. Returns selected paths ([] on cancel or non-macOS)."""
-    if sys.platform != "darwin":
-        # Fallback: let the user type/paste space-separated paths.
-        raw = _prompt(f"{DIM}Enter file paths (space-separated): {RESET}")
-        return [Path(os.path.expanduser(p)) for p in raw.split() if p.strip()]
+    """Open a native 'choose files' dialog restricted to the given extensions.
+    Uses the OS's own dialog (no Tk). Returns selected paths, or [] on cancel.
+    Falls back to a typed-path prompt if no graphical picker is available."""
+    if sys.platform == "darwin":
+        return _choose_files_macos(extensions)
+    if sys.platform.startswith("linux"):
+        picked = _choose_files_linux(extensions)
+        if picked is not None:
+            return picked
+    # Last resort (headless, or no picker installed): ask for paths.
+    raw = _prompt(f"{DIM}Enter file paths (space-separated): {RESET}")
+    return [Path(os.path.expanduser(p)) for p in raw.split() if p.strip()]
 
+
+def _choose_files_linux(extensions: tuple[str, ...]) -> list[Path] | None:
+    """Try zenity, then kdialog. Returns a (possibly empty) list of paths if a
+    dialog ran, or None if no graphical picker is installed."""
+    pretty = " ".join(f"*.{e}" for e in extensions)
+
+    if _which("zenity"):
+        cmd = [
+            "zenity", "--file-selection", "--multiple", "--separator=\n",
+            "--title=Select file(s) to convert",
+            f"--file-filter=Supported | {pretty}",
+            "--file-filter=All files | *",
+        ]
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+        if proc.returncode != 0:  # user cancelled
+            return []
+        return [Path(ln) for ln in proc.stdout.splitlines() if ln.strip()]
+
+    if _which("kdialog"):
+        cmd = [
+            "kdialog", "--getopenfilename", os.path.expanduser("~"),
+            f"{pretty}|Supported files",
+            "--multiple", "--separate-output",
+            "--title", "Select file(s) to convert",
+        ]
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+        if proc.returncode != 0:
+            return []
+        return [Path(ln) for ln in proc.stdout.splitlines() if ln.strip()]
+
+    return None
+
+
+def _which(name: str) -> str | None:
+    from shutil import which
+    return which(name)
+
+
+def _choose_files_macos(extensions: tuple[str, ...]) -> list[Path]:
     type_list = "{" + ", ".join(f'"{e}"' for e in extensions) + "}"
     pretty = " / ".join(f".{e}" for e in extensions)
 
@@ -316,11 +361,20 @@ def show_report(results: list[ConversionResult], errors: list[tuple[Path, str]])
         print(f"{DIM}   Output saved next to each source file.{RESET}")
 
 
-def reveal_in_finder(results: list[ConversionResult]):
-    if not results or sys.platform != "darwin":
+def _file_manager_label() -> str:
+    return "Finder" if sys.platform == "darwin" else "file manager"
+
+
+def reveal_output(results: list[ConversionResult]):
+    """Open the folder containing the first output in the OS file manager."""
+    if not results:
         return
+    target = results[0].output
     try:
-        subprocess.run(["open", "-R", str(results[0].output)], check=False)
+        if sys.platform == "darwin":
+            subprocess.run(["open", "-R", str(target)], check=False)
+        elif sys.platform.startswith("linux"):
+            subprocess.run(["xdg-open", str(target.parent)], check=False)
     except FileNotFoundError:
         pass
 
@@ -333,7 +387,7 @@ def next_menu(has_output: bool) -> str:
     print(f"\n{BOLD}What next?{RESET}\n")
     print(f"  {PURPLE}1{RESET}) Convert more files")
     if has_output:
-        print(f"  {PURPLE}2{RESET}) Reveal output in Finder")
+        print(f"  {PURPLE}2{RESET}) Reveal output in {_file_manager_label()}")
     print(f"  {PURPLE}q{RESET}) Quit\n")
     while True:
         choice = _prompt(f"Choose {DIM}[1{', 2' if has_output else ''}, q]{RESET}: ").strip().lower()
@@ -369,7 +423,7 @@ def interactive() -> int:
             while True:
                 action = next_menu(bool(results))
                 if action == "reveal":
-                    reveal_in_finder(results)
+                    reveal_output(results)
                     continue
                 break
             if action == "quit":
@@ -392,7 +446,13 @@ def batch(paths: list[str]) -> int:
 
 
 def main():
-    files = [a for a in sys.argv[1:] if not a.startswith("-")]
+    argv = sys.argv[1:]
+    # --gui launches the full Tkinter app (bundled into the same executable).
+    if "--gui" in argv:
+        import app_gui
+        app_gui.run_gui()
+        return
+    files = [a for a in argv if not a.startswith("-")]
     if files:
         raise SystemExit(batch(files))
     raise SystemExit(interactive())
