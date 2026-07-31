@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Build output (macOS .app + PyInstaller Linux artifacts)
+build/
+dist/
+*.app/
+*.spec
+
+# macOS
+.DS_Store
