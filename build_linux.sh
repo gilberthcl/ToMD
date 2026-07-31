@@ -159,13 +159,20 @@ echo "✅ Installed launcher to $DESKTOP_FILE"
 update-desktop-database "$APPS_DIR" >/dev/null 2>&1 || true
 
 # ---------------------------------------------------------------------------
-# 8. Make sure ~/.local/bin is on PATH for future shells.
+# 8. Make sure ~/.local/bin is on PATH for future shells. Pick the rc file for
+#    the user's *login* shell ($SHELL) — this script runs under bash, so
+#    $ZSH_VERSION would be empty and mislead us for zsh users.
 # ---------------------------------------------------------------------------
 case ":$PATH:" in
     *":$BIN_DIR:"*) ;;  # already there
     *)
-        RCFILE="$HOME/.bashrc"
-        [ -n "${ZSH_VERSION:-}" ] && RCFILE="$HOME/.zshrc"
+        case "$(basename "${SHELL:-/bin/bash}")" in
+            zsh)  RCFILE="$HOME/.zshrc" ;;
+            bash) RCFILE="$HOME/.bashrc" ;;
+            *)    RCFILE="$HOME/.profile" ;;
+        esac
+        # Fall back to an existing rc file if the preferred one is absent.
+        [ -e "$RCFILE" ] || { [ -e "$HOME/.zshrc" ] && RCFILE="$HOME/.zshrc"; }
         echo "export PATH=\"$BIN_DIR:\$PATH\"" >> "$RCFILE"
         echo "ℹ️  Added $BIN_DIR to PATH in $RCFILE — run 'source $RCFILE' (or open a new terminal)."
         ;;
